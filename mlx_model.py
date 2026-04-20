@@ -5,7 +5,7 @@ import json
 import os
 from transformers import AutoTokenizer
 from mlx_embeddings.utils import load as load_mlx_model
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict
 
 class MLXBGEM3Model:
     def __init__(self, model_path: str):
@@ -15,7 +15,7 @@ class MLXBGEM3Model:
             weights = mx.load(f"{model_path}/sparse_linear.safetensors")
             self.sparse_linear = nn.Linear(1024, 1, bias=False)
             self.sparse_linear.update({"weight": weights["weight"]})
-        except:
+        except Exception:
             print("Sparse weights not found, hybrid embedding will be unavailable")
 
     def encode_dense(self, texts: List[str], batch_size: int = 8) -> np.ndarray:

@@ -17,7 +17,6 @@ def convert_embedding_model(model_id, output_path):
     
     # Extract sparse linear weights for BGE-M3
     print("Extracting sparse weights for BGE-M3...")
-    from transformers import AutoModel
     import torch
     
     # Load original model to get the linear layer
@@ -47,24 +46,11 @@ def convert_embedding_model(model_id, output_path):
     
     shutil.rmtree(temp_dir)
 
-def convert_reranker_model(model_id, output_path):
-    print(f"Converting reranker model {model_id} to {output_path}...")
-    # Rerankers can often be converted the same way as embeddings if they are XLM-R
-    cmd = [
-        "python", "-m", "mlx_embeddings.convert",
-        "--hf-path", model_id,
-        "--mlx-path", output_path,
-        "--dtype", "float16"
-    ]
-    subprocess.run(cmd, check=True)
 
 if __name__ == "__main__":
     os.makedirs("models", exist_ok=True)
     
     # BGE-M3 Embedding
     convert_embedding_model("BAAI/bge-m3", "models/bge-m3-mlx")
-    
-    # BGE-Reranker-v2-m3
-    convert_reranker_model("BAAI/bge-reranker-v2-m3", "models/bge-reranker-v2-m3-mlx")
     
     print("Model conversion complete!")

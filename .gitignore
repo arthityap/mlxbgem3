@@ -21,3 +21,6 @@ models/
 
 # IDE related
 mlxbgem3.code-workspace
+
+# Environment variables
+.env

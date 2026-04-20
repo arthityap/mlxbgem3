@@ -1,12 +1,12 @@
 import httpx
 import os
-import json
 from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_URL_EMBED = "http://10.230.57.109:8000"
-BASE_URL_RERANK = "http://10.230.57.109:8002"
+ZT_IP = os.getenv("ZT_IP", "10.230.57.109")
+BASE_URL_EMBED = f"http://{ZT_IP}:8000"
+BASE_URL_RERANK = f"http://{ZT_IP}:8002"
 API_KEY = os.getenv("EMBEDDING_API_KEY", "m1macmini")
 
 def test_health():

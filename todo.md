@@ -1,0 +1,27 @@
+# Todo - MLXBGEM3 Gap Fixes
+
+- [x] Upgrade Python to 3.12 (Modernized for MLX)
+- [x] Update README and AGENTS doc (Simplified architecture)
+- [x] Clean up support scripts (Removed Reranker/MCP logic from preflight/convert)
+- [x] Fix `.env` exposure
+    - [x] Add `.env` to `.gitignore`
+    - [x] Remove `.env` from git tracking (`git rm --cached .env`)
+- [x] Refactor `ZT_IP` to environment variable
+    - [x] Add `ZT_IP=10.230.57.109` to `.env`
+    - [x] Update `start.py` to use `os.getenv("ZT_IP")`
+    - [x] Update `bgem3_mcp.py` to use `os.getenv("ZT_IP")` (Preserved but disabled)
+    - [x] Update `test/api_tests.py` to use `os.getenv("ZT_IP")`
+    - [x] Update `restart.sh` if it contains the IP
+    - [x] Update `AGENTS.md` to mention `ZT_IP` in `.env`
+- [x] Fix `test_service.py` missing issue
+    - [x] Create `test_service.py` at root
+- [x] Handle `main.py` stub
+    - [x] Check if `main.py` should be removed or expanded (Deleted).
+- [x] Add `logs/.gitkeep`
+    - [x] Create `logs/.gitkeep`
+- [x] Service Simplification (Requested by User)
+    - [x] Drop MCP and Reranker services
+    - [x] Update documentation (README, AGENTS)
+- [x] Verify all changes
+    - [x] Run `uv run preflight.py`
+    - [x] Run `uv run start.py` (which runs `test_service.py`)

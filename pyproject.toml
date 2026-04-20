@@ -3,7 +3,7 @@ name = "mlxbgem3"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "mlx>=0.18.0",
     "mlx-embeddings",

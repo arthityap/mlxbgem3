@@ -6,7 +6,7 @@ Self-hosted embedding generation service using the [BAAI/bge-m3](https://github.
 
 - Generate **dense embeddings** (1024-dimensional) for text retrieval using MLX
 - Generate **hybrid embeddings** (dense + sparse) for hybrid search
-- Expose via REST API and MCP (Model Context Protocol) for AI agent integration
+- Expose via REST API for AI agent integration
 
 ## Architecture
 
@@ -14,14 +14,14 @@ Self-hosted embedding generation service using the [BAAI/bge-m3](https://github.
 ┌─────────────────────────────────────────────────────────────┐
 │                     BGEM3-MLX Service                      │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────┐                      ┌───────┐   │
-│  │bgem3_embed:8000   │                      │  MCP  │   │
-│  │   (FastAPI)       │                      │ 8001  │   │
-│  │ - /embed         │                      │       │   │
-│  │ - /embed/hybrid  │                      │ embed │   │
-│  │ - /health        │                      │ hybrid│   │
-│  │ - /info          │                      │       │   │
-│  └────────┬────────┘                      └───────┘   │
+│  ┌─────────────────────┐                                     │
+│  │bgem3_embed:8000   │                                     │
+│  │   (FastAPI)       │                                     │
+│  │ - /embed         │                                     │
+│  │ - /embed/hybrid  │                                     │
+│  │ - /health        │                                     │
+│  │ - /info          │                                     │
+│  └────────┬────────┘                                     │
 │           │         BGE-M3 Model                        │
 │           │    (mlx + mlx-embeddings)                   │
 │           └──────────────────────────────────────┘      │
@@ -41,8 +41,8 @@ Self-hosted embedding generation service using the [BAAI/bge-m3](https://github.
 ### Prerequisites
 
 - macOS on Apple Silicon (M1/M2/M3)
-- ZeroTier connected to network `10.230.57.x` (IP: `10.230.57.109`)
-- **Python 3.11+**
+- ZeroTier connected to network `10.230.57.x` (IP: `10.230.57.109` by default)
+- **Python 3.12+**
 
 ### Installation & Startup
 
@@ -51,26 +51,26 @@ Self-hosted embedding generation service using the [BAAI/bge-m3](https://github.
 uv sync
 ```
 
-**Step 2: Convert Models to MLX**
+**Step 2: Convert Model to MLX**
 ```bash
 uv run convert_models.py
 ```
-This downloads and converts BGE-M3 and Reranker-v2-m3 to MLX format.
+This downloads and converts BGE-M3 to MLX format.
 
 **Step 3: Run preflight check**
 ```bash
 uv run preflight.py
 ```
 
-**Step 4: Start Services**
+**Step 4: Start Service**
 ```bash
 ./restart.sh
 ```
-*Note: Reranker service is currently disabled by default but scripts are preserved in the repo.*
+*Note: Reranker and MCP services have been removed to focus on the core embedding service.*
 
 ### Test It
 ```bash
-uv run python test/api_tests.py
+uv run test_service.py
 ```
 
 ## API Reference
@@ -93,28 +93,20 @@ curl -X POST http://10.230.57.109:8000/embed \
   -d '["your text here"]'
 ```
 
-### MCP Server (port 8001)
-
-Tools available:
-- `embed(texts: list[str])`
-- `embed_hybrid(texts: list[str])`
-
 ## Files
 
 | File | Purpose |
 |------|----------|
-| `restart.sh` | Starts Embedding and MCP services |
+| `restart.sh` | Starts Embedding service |
 | `preflight.py` | Environment checks for MLX and Metal |
 | `mlx_model.py` | Core MLX inference engine |
 | `bgem3_embed.py` | FastAPI embedding service |
-| `bgem3_mcp.py` | FastMCP gateway |
-| `test/` | API test suite |
+| `test_service.py` | Smoke tests |
 | `changelog.md` | History of changes and MLX migration |
 
 ## Auto-Start (launchd)
 
-The services are configured to start on boot via LaunchAgents:
+The service is configured to start on boot via LaunchAgent:
 ```bash
 launchctl load -w ~/Library/LaunchAgents/com.bgem3.embed.plist
-launchctl load -w ~/Library/LaunchAgents/com.bgem3.mcp.plist
 ```

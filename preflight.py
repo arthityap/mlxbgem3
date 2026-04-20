@@ -1,14 +1,13 @@
 import os
 import sys
-import psutil
 from dotenv import load_dotenv
 
 def check_python_version():
     print(f"Checking Python version: {sys.version.split()[0]}...", end=" ")
-    if sys.version_info.major == 3 and sys.version_info.minor >= 11:
+    if sys.version_info.major == 3 and sys.version_info.minor >= 12:
         print("OK")
     else:
-        print("FAIL (3.11+ required)")
+        print("FAIL (3.12+ required)")
         return False
     return True
 
@@ -43,8 +42,7 @@ def check_mlx():
 def check_models():
     print("Checking MLX models in ./models/...", end=" ")
     embed_path = "models/bge-m3-mlx"
-    rerank_path = "models/bge-reranker-v2-m3-mlx"
-    if os.path.exists(embed_path) and os.path.exists(rerank_path):
+    if os.path.exists(embed_path):
         print("OK")
     else:
         print("FAIL (run 'uv run convert_models.py' first)")

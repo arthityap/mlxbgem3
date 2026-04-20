@@ -6,13 +6,15 @@ from fastmcp import FastMCP
 # stateless_http=True: no session state stored between requests.
 mcp = FastMCP("BGEM3")
 
-BGEM3_URL = "http://10.230.57.109:8000"
+ZT_IP = os.getenv("ZT_IP", "10.230.57.109")
+BGEM3_URL = f"http://{ZT_IP}:8000"
+RERANK_URL = f"http://{ZT_IP}:8002"
 API_KEY = os.getenv("EMBEDDING_API_KEY", "m1macmini")
-ZT_IP = "10.230.57.109"
 MCP_PORT = 8001
 
 _EMBED_TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=5.0, pool=5.0)
 _HYBRID_TIMEOUT = httpx.Timeout(connect=5.0, read=45.0, write=5.0, pool=5.0)
+_RERANK_TIMEOUT = httpx.Timeout(connect=5.0, read=60.0, write=5.0, pool=5.0)
 
 
 @mcp.tool()
@@ -68,6 +70,35 @@ async def embed_hybrid(texts: list[str]) -> dict:
         except httpx.HTTPStatusError as e:
             raise ValueError(
                 f"bgem3_embed hybrid error {e.response.status_code}: {e.response.text}"
+            ) from e
+
+
+@mcp.tool()
+async def rerank(query: str, passages: list[str], top_n: int = 5) -> list[dict]:
+    """Rerank a list of passages for a given query using BGE-Reranker-v2-m3.
+
+    Args:
+        query: The search query.
+        passages: List of passages to rerank.
+        top_n: Number of top results to return.
+
+    Returns:
+        List of dicts with 'index', 'text', and 'score', sorted by score descending.
+    """
+    async with httpx.AsyncClient(timeout=_RERANK_TIMEOUT) as client:
+        try:
+            r = await client.post(
+                f"{RERANK_URL}/rerank",
+                headers={"Authorization": f"Bearer {API_KEY}"},
+                json={"query": query, "passages": passages, "top_n": top_n},
+            )
+            r.raise_for_status()
+            return r.json()["results"]
+        except httpx.TimeoutException as e:
+            raise ValueError(f"bgem3_rerank timed out: {e}") from e
+        except httpx.HTTPStatusError as e:
+            raise ValueError(
+                f"bgem3_rerank error {e.response.status_code}: {e.response.text}"
             ) from e
 
 

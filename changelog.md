@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-04-20] - Python Upgrade
+- Upgraded project to Python 3.12 for better MLX compatibility and performance.
+- Updated `.python-version`, `pyproject.toml`, `preflight.py`, and `AGENTS.md`.
+- **Documentation**: Synchronized `README.md` and `AGENTS.md` with the new architecture and Python version.
+- **Cleanup**: Removed stale Reranker logic from `convert_models.py` and `preflight.py`.
+- Verified system integrity with `uv run preflight.py`.
+
+
+### Changed
+- **Service Simplification**: Dropped Reranker and MCP services to focus on the core Embedding API.
+- **Automation**: Updated `restart.sh`, `start.py`, and `test_service.py` to only manage/verify the embedding service.
+- **Documentation**: Updated `README.md` and `AGENTS.md` to reflect the single-service focus.
+- **Security**: Finalized `.env` removal from git tracking.
+
+
 ## [2026-04-20] MLX Conversion
 
 ### Added
