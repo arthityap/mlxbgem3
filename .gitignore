@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Logs (directory tracked, contents ignored)
+logs/*.log
+!logs/.gitkeep
+
+# Models
+models/
+
+# OS related
+.DS_Store
+
+# IDE related
+mlxbgem3.code-workspace

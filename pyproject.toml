@@ -1,0 +1,20 @@
+[project]
+name = "mlxbgem3"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mlx>=0.18.0",
+    "mlx-embeddings",
+    "transformers",
+    "huggingface_hub",
+    "fastapi",
+    "uvicorn",
+    "python-dotenv",
+    "psutil",
+    "anyio",
+    "httpx",
+    "fastmcp",
+    "pydantic",
+]
