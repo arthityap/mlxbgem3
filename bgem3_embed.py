@@ -1,4 +1,5 @@
 import asyncio
+import math
 import os
 import time
 from typing import Any, Dict
@@ -20,6 +21,13 @@ _model: MLXBGEM3Model = None
 # Concurrency controls
 MAX_QUEUE: int = int(os.getenv("EMBED_MAX_QUEUE", "8"))
 INFERENCE_TIMEOUT: float = float(os.getenv("EMBED_INFERENCE_TIMEOUT", "30.0"))
+
+# Chunking — max texts per GPU pass to keep memory predictable
+EMBED_CHUNK_SIZE: int = int(os.getenv("EMBED_CHUNK_SIZE", "32"))
+HYBRID_CHUNK_SIZE: int = int(os.getenv("HYBRID_CHUNK_SIZE", "8"))
+
+# Hard cap — purely a sanity guard, not a concurrency limit
+MAX_TEXTS: int = int(os.getenv("EMBED_MAX_TEXTS", "512"))
 
 _queue_depth: int = 0
 
@@ -61,6 +69,11 @@ async def _run_with_gpu_lock(fn) -> Any:
         _queue_depth -= 1
 
 
+def _chunk(lst: list, size: int) -> list[list]:
+    """Split list into sublists of at most `size` items."""
+    return [lst[i : i + size] for i in range(0, len(lst), size)]
+
+
 async def lifespan(app: FastAPI):
     global _mlx_lock, _model
     _mlx_lock = asyncio.Semaphore(1)
@@ -68,14 +81,13 @@ async def lifespan(app: FastAPI):
         model_path = os.getenv("EMBED_MODEL_PATH", "models/bge-m3-mlx")
         if not os.path.exists(model_path):
             print(f"Model path {model_path} not found. Ensure you ran convert_models.py")
-            # Fallback to local conversion if possible? Better to fail early.
             raise RuntimeError(f"Model not found at {model_path}")
-            
+
         _model = MLXBGEM3Model(model_path)
-        
+
         # Warmup
         _model.encode_dense(["warmup text"], batch_size=1)
-        
+
         print("BGE-M3 ready on MLX")
         if _EMBEDDING_API_KEY:
             print("Auth enabled")
@@ -111,7 +123,7 @@ def health() -> Dict[str, Any]:
         "timestamp": int(time.time()),
         "cpu_percent": cpu_percent,
         "memory_percent": memory.percent,
-        "mps_available": True, # MLX always uses Metal on Mac
+        "mps_available": True,
         "semaphore_locked": _mlx_lock.locked() if _mlx_lock is not None else False,
         "queue_depth": _queue_depth,
     }
@@ -125,6 +137,8 @@ def info() -> Dict[str, Any]:
         "device": "metal",
         "framework": "mlx",
         "auth_enabled": bool(_EMBEDDING_API_KEY),
+        "max_texts": MAX_TEXTS,
+        "chunk_size": EMBED_CHUNK_SIZE,
     }
 
 
@@ -139,19 +153,29 @@ async def embed(
 
     if not texts:
         raise HTTPException(status_code=422, detail="Text list cannot be empty")
-    if len(texts) > 32:
-        raise HTTPException(status_code=429, detail="max 32 texts")
+    if len(texts) > MAX_TEXTS:
+        raise HTTPException(status_code=422, detail=f"max {MAX_TEXTS} texts per request")
 
     try:
-        result = await _run_with_gpu_lock(
-            lambda: _model.encode_dense(texts, batch_size=8)
-        )
+        chunks = _chunk(texts, EMBED_CHUNK_SIZE)
+        all_embeddings = []
+
+        for chunk in chunks:
+            chunk_copy = chunk  # capture for lambda
+            result = await _run_with_gpu_lock(
+                lambda c=chunk_copy: _model.encode_dense(c, batch_size=8)
+            )
+            all_embeddings.extend(result.tolist())
+
         return {
-            "embeddings": result.tolist(),
+            "embeddings": all_embeddings,
             "count": len(texts),
             "dimensions": 1024,
             "model": "BAAI/bge-m3-mlx",
+            "chunks_processed": len(chunks),
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -165,21 +189,34 @@ async def embed_hybrid(
 ) -> Dict[str, Any]:
     _check_api_key(credentials)
 
-    if len(texts) > 8:
-        raise HTTPException(status_code=429, detail="max 8 texts for hybrid")
+    if not texts:
+        raise HTTPException(status_code=422, detail="Text list cannot be empty")
+    if len(texts) > MAX_TEXTS:
+        raise HTTPException(status_code=422, detail=f"max {MAX_TEXTS} texts per request")
 
     try:
-        dense = await _run_with_gpu_lock(
-            lambda: _model.encode_dense(texts, batch_size=4)
-        )
-        sparse = await _run_with_gpu_lock(
-            lambda: _model.encode_sparse(texts, batch_size=4)
-        )
-        
+        chunks = _chunk(texts, HYBRID_CHUNK_SIZE)
+        all_dense = []
+        all_sparse = []
+
+        for chunk in chunks:
+            dense = await _run_with_gpu_lock(
+                lambda c=chunk: _model.encode_dense(c, batch_size=4)
+            )
+            sparse = await _run_with_gpu_lock(
+                lambda c=chunk: _model.encode_sparse(c, batch_size=4)
+            )
+            all_dense.extend(dense.tolist())
+            all_sparse.extend(sparse)
+
         return {
-            "dense_embeddings": dense.tolist(),
-            "sparse_embeddings": sparse,
+            "dense_embeddings": all_dense,
+            "sparse_embeddings": all_sparse,
             "model": "BAAI/bge-m3-mlx",
+            "count": len(texts),
+            "chunks_processed": len(chunks),
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
